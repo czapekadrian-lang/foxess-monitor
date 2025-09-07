@@ -116,7 +116,7 @@ def generate_sankey_for_date(date_selected):
     """Wraps the entire process for a given date and returns a Plotly figure."""
     try:
         year, month, day = map(int, date_selected.split('-'))
-        variables = ["loadsPower", "feedinPower", "gridConsumptionPower", "batDischargePower", "batChargePower", "pvPower"]
+        variables = ["loadsPower", "feedinPower", "gridConsumptionPower", "batDischargePower", "batChargePower", "pvPower","generationPower"]
 
         tz = ZoneInfo("Europe/Warsaw")
         startdate = datetime.datetime(year, month, day, 0, 0, 0, tzinfo=tz)
@@ -139,12 +139,22 @@ def generate_sankey_for_date(date_selected):
             total_kwh = calculate_kwh(power_data, start_str, end_str)
             calculated_data.update({variable.get('name'): round(total_kwh, 3)})
 
-        pv_autoconsume = calculated_data.get('PVPower', 0) - calculated_data.get('Charge Power', 0) - calculated_data.get('Feed-in Power', 0)
-        calculated_load = pv_autoconsume + calculated_data.get('Discharge Power', 0) + calculated_data.get('GridConsumption Power', 0)
+        #Waste calculation and update PVPower with calculated waste
+        pv_waste = calculated_data['PVPower'] + calculated_data['Discharge Power'] - calculated_data['Charge Power'] - calculated_data['Output Power']
+        grid_waste = calculated_data['Load Power'] - calculated_data['Output Power'] - calculated_data['GridConsumption Power'] + calculated_data['Feed-in Power']
+        pv_power = calculated_data['PVPower'] - pv_waste + grid_waste
+        calculated_data.update({'PVPower':round(pv_power,3)})
+
+        pv_autoconsume = calculated_data['PVPower'] - calculated_data['Charge Power'] - calculated_data['Feed-in Power']
+
+        calculated_load = pv_autoconsume + calculated_data['Discharge Power'] + calculated_data['GridConsumption Power']
+
         delta_load = calculated_load - calculated_data['Load Power']
 
-        calculated_data.update({"PV Auto Consume Power": round(pv_autoconsume, 3)})
-        calculated_data.update({"Calculated Load Power": round(calculated_load, 3)})
+        calculated_data.update({"PV Auto Consume Power" : round(pv_autoconsume,3)})
+        calculated_data.update({"Calculated Load Power" : round(calculated_load,3)})
+        calculated_data.update({"PV Waste Power" : round(pv_waste,3)})
+        calculated_data.update({"Grid Waste Power" : round(grid_waste,3)})
         calculated_data.update({"Delta Load Power" : round(delta_load,3)})
 
         return plot_diagram(calculated_data, date_selected), calculated_data
