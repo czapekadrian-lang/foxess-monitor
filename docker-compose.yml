@@ -5,9 +5,8 @@ services:
     build: .
     ports:
       - "8080:5000"
-    # This change tells Docker Compose to look for an .env file
-    # instead of expecting variables from the command line.
     environment:
       - API_KEY
       - SN
+      - STATION_ID
     restart: always
