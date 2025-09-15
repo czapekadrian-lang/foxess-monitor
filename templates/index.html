@@ -106,7 +106,7 @@
                             <input type="number" class="form-control" id="forecast-offset" name="forecast_offset">
                         </div>
                         <div class="col-auto">
-                            <button type="submit" class="btn btn-primary">Set</button>
+                            <button type="submit" class="btn btn-primary" onclick="setSettings()">Set</button>
                         </div>
                     </div>
                 </form>
@@ -136,7 +136,25 @@
                 document.getElementById('console-output').innerText = 'ERROR: Communication with workmode process failed'
             }
         }
-        
+
+        async function setSettings() {
+            const new_init_soc = document.getElementById('init-soc').value;
+            const new_charge_start = document.getElementById('charge-start').value;
+            const new_forecast_offset = document.getElementById('forecast-offset').value;
+
+            const response = await fetch(`${BACKEND_URL}/api/set`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    new_init_soc: parseInt(new_init_soc),
+                    new_charge_start: parseInt(new_charge_start),
+                    new_forecast_offset: parseInt(new_forecast_offset)
+                })
+            });
+        }     
+
         fetchStatus();
         setInterval(fetchStatus, 300000)
     </script>
