@@ -112,7 +112,7 @@
                 </form>
 
                 <div class="console-output">
-                    <pre class="mb-0" id="console-output">Example output...</pre>
+                    <pre class="mb-0" id="console-output"></pre>
                 </div>
 
             </div>
@@ -133,6 +133,7 @@
                 
             } catch (error) {
                 console.error('Error while fetching status:', error);
+                document.getElementById('console-output').innerText = 'ERROR: Communication with workmode process failed'
             }
         }
         
