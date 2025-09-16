@@ -4,7 +4,7 @@ services:
   web:
     build: .
     ports:
-      - "8080:5000"
+      - "8080:80"
     # This change tells Docker Compose to look for an .env file
     # instead of expecting variables from the command line.
     environment:
