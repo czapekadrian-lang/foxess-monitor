@@ -6,7 +6,7 @@ import json
 import datetime
 from zoneinfo import ZoneInfo
 import plotly.graph_objects as go
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify 
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
@@ -77,9 +77,6 @@ def calculate_kwh(power_data, start_time_str, end_time_str):
     return total_kwh
 
 def plot_diagram(power_data, date):
-    # This function is the same as in your script, but returns the figure object
-    # ... (code for plot_diagram is identical to your original script) ...
-    # Make sure it ends with `return fig` and NOT `fig.show()`
     data = {
      'Calculated Load Power': power_data['Calculated Load Power'], 'Feed-in Power': power_data['Feed-in Power'],
      'GridConsumption Power': power_data['GridConsumption Power'], 'Discharge Power': power_data['Discharge Power'],
@@ -108,10 +105,9 @@ def plot_diagram(power_data, date):
             ]
         )
     )])
-    fig.update_layout(title_text=f"Power Flow Diagram ({date})", font_size=12, width=800, height=600)
+    fig.update_layout(title_text=f"Power Flow Diagram ({date})", font_size=12, height=600, autosize=True)
     return fig
 
-# --- Main Logic Function ---
 def generate_sankey_for_date(date_selected):
     """Wraps the entire process for a given date and returns a Plotly figure."""
     try:
@@ -168,22 +164,34 @@ def generate_sankey_for_date(date_selected):
 def index():
     # Calculate today's date in the required YYYY-MM-DD format
     today_str = datetime.date.today().strftime("%Y-%m-%d")
-
-    if request.method == 'POST':
-        date_selected = request.form['date']
-        result = generate_sankey_for_date(date_selected)
-
-        if isinstance(result, str): # Handle error case
-            return render_template('index.html', error=result, selected_date=date_selected, today_date=today_str)
-        else: # Handle success case
-            # Unpack the tuple into two variables
-            fig, calc_data = result
-            plot_div = fig.to_html(full_html=False)
-            # Pass the calculated_data to the template
-            return render_template('index.html', plot_div=plot_div, calculated_data=calc_data, selected_date=date_selected, today_date=today_str)
     
-    # For a GET request, pass today's date for both the default value and the max date
     return render_template('index.html', selected_date=today_str, today_date=today_str)
 
+@app.route('/api/powerflow', methods=['POST'])
+def api_powerflow():
+    """
+    Generate PowerFlow diagram data
+    """
+    # Read frontend data
+    data = request.get_json()
+    date_selected = data.get('date')
+
+    if not date_selected:
+        return jsonify({'error': 'Missing date'}), 400
+
+    result = generate_sankey_for_date(date_selected)
+
+    if isinstance(result, str): # Error handling
+        return jsonify({'error': result}), 500
+    else: # Success
+        fig, calc_data = result
+        fig_dict = fig.to_dict()
+        
+        return jsonify({
+            'plot_data': fig_dict['data'],
+            'plot_layout': fig_dict['layout'],
+            'calculated_data': calc_data
+        })
+    
 if __name__ == '__main__':
     app.run(debug=True)
