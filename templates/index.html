@@ -155,11 +155,9 @@
             }
         }
 
-        const BACKEND_URL = 'http://109.197.189.150:5000';
-
         async function fetchStatus() {
             try {
-                const response = await fetch(`${BACKEND_URL}/api/status`);
+                const response = await fetch(`/ext/api/status`);
                 const data = await response.json();
 
                 document.getElementById('init-soc').value = data.init_soc;
@@ -178,7 +176,7 @@
             const new_charge_start = document.getElementById('charge-start').value;
             const new_forecast_offset = document.getElementById('forecast-offset').value;
 
-            const response = await fetch(`${BACKEND_URL}/api/set`, {
+            const response = await fetch(`/ext/api/set`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
