@@ -1,20 +1,27 @@
 import os
+import io
+import base64
 import requests
 import hashlib
 import time
 import json
 import datetime
+import solcast
 from zoneinfo import ZoneInfo
 import plotly.graph_objects as go
-from flask import Flask, render_template, request, jsonify 
+from flask import Flask, render_template, request, jsonify
 
 # --- Flask App Initialization ---
 app = Flask(__name__)
 
-# --- API Settings (Keep these at the top) ---
+# --- API Settings (FoxESS) ---
 API_KEY = os.environ.get("API_KEY")
 SN = os.environ.get("SN")
 BASE_URL = "https://www.foxesscloud.com"
+
+# --- API Settings (Solcast) ---
+SOLCAST_API_KEY = os.environ.get("SOLCAST_API_KEY")
+SOLCAST_ID = os.environ.get("SOLCAST_ID")
 
 # --- Helper Functions (Your existing functions, unchanged) ---
 def create_headers(api_key, path):
@@ -68,7 +75,7 @@ def calculate_kwh(power_data, start_time_str, end_time_str):
     for i in range(len(processed_data) - 1):
         current_point = processed_data[i]
         next_point = processed_data[i+1]
-        if current_point['time'] >= start_time and next_point['time'] <= end_time:
+        if current_point['time'] >= start_time - datetime.timedelta(seconds=270) and next_point['time'] <= end_time:
             time_delta_seconds = (next_point['time'] - current_point['time']).total_seconds()
             time_delta_hours = time_delta_seconds / 3600.0
             power_kw = float(next_point['value'])
@@ -192,6 +199,46 @@ def api_powerflow():
             'plot_layout': fig_dict['layout'],
             'calculated_data': calc_data
         })
+
+@app.route('/api/production_forecast', methods=['GET'])
+def production_forecast():
+    timezone = "Europe/Warsaw"
+    db = solcast.create_solcast_db(solcast.SOLCAST_JSON,timezone)
+    solcast.save_data_to_json(db,solcast.SOLCAST_DB)
+
+    date = datetime.date.today().strftime("%Y-%m-%d")
+    nominal = solcast.get_hourly_solcast_for_date(solcast.SOLCAST_DB,solcast.ESTIMATE_NOMINAL,date)
+    worst = solcast.get_hourly_solcast_for_date(solcast.SOLCAST_DB,solcast.ESTIMATE_WORST,date)
+    best = solcast.get_hourly_solcast_for_date(solcast.SOLCAST_DB,solcast.ESTIMATE_BEST,date)
     
+    variables = ["pvPower"]
+    startdate = datetime.datetime.strptime(date+" 00:00:00","%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("Europe/Warsaw"))
+    enddate = datetime.datetime.strptime(date+" 23:59:59","%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("Europe/Warsaw"))
+    
+    API_KEY = "b6a40fd7-5ede-412f-a2ff-c9b47ab2c699"
+    SN = "60EH802035TM018"
+
+    response = get_device_history_data(SN,variables,startdate.timestamp()*1000,enddate.timestamp()*1000)
+    pvPower = response.json().get('result')[0].get('datas')[0].get('data')
+    forecast = nominal
+    real = dict.fromkeys(forecast.keys(), 0.0)
+    year,month,day = date.split("-")
+    for hour in real.keys():
+        start = datetime.datetime(int(year), int(month), int(day), int(hour), 0, 0,tzinfo=ZoneInfo("Europe/Warsaw")).strftime("%Y-%m-%d %H:%M:%S")
+        end = datetime.datetime(int(year), int(month), int(day), int(hour), 59, 59,tzinfo=ZoneInfo("Europe/Warsaw")).strftime("%Y-%m-%d %H:%M:%S")
+        kwh = round(calculate_kwh(pvPower,start,end),3)
+        real[hour] = kwh
+    fig, ax = solcast.plot_production_with_forecast(forecast,real)  
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png')
+    buf.seek(0)
+    image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+    image_data_url = f"data:image/png;base64,{image_base64}"
+    
+    return jsonify({
+        'graph_data':image_data_url
+    })
+
 if __name__ == '__main__':
     app.run(debug=True)
+
