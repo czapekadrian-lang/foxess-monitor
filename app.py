@@ -214,9 +214,6 @@ def production_forecast():
     variables = ["pvPower"]
     startdate = datetime.datetime.strptime(date+" 00:00:00","%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("Europe/Warsaw"))
     enddate = datetime.datetime.strptime(date+" 23:59:59","%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo("Europe/Warsaw"))
-    
-    API_KEY = "b6a40fd7-5ede-412f-a2ff-c9b47ab2c699"
-    SN = "60EH802035TM018"
 
     response = get_device_history_data(SN,variables,startdate.timestamp()*1000,enddate.timestamp()*1000)
     pvPower = response.json().get('result')[0].get('datas')[0].get('data')
@@ -234,7 +231,7 @@ def production_forecast():
     buf.seek(0)
     image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
     image_data_url = f"data:image/png;base64,{image_base64}"
-    
+
     return jsonify({
         'graph_data':image_data_url
     })
