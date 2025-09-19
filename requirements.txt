@@ -2,3 +2,4 @@ requests
 plotly
 flask
 gunicorn
+matplotlib
