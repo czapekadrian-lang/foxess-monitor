@@ -236,6 +236,10 @@ def production_forecast():
         'graph_data':image_data_url
     })
 
+@app.route('/api/forecast_update', methods=['GET'])
+def forecast_update():
+    solcast.get_solcast_estimate(SOLCAST_API_KEY,SOLCAST_ID)
+
 if __name__ == '__main__':
     app.run(debug=True)
 
